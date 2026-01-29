@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nursing Programme Swimlane Timeline</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --accent: #2b6cb0;
+            --muted: #64748b;
+            --light: #f1f5f9;
+            --card: #ffffff;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --font-main: 'Cormorant Garamond', Georgia, serif;
+            
+            /* Lane colours */
+            --lane-moodle: #7c3aed;
+            --lane-epad: #dc2626;
+            --lane-turas: #0891b2;
+            --lane-qmple: #ea580c;
+            --lane-placement: #16a34a;
+            
+            /* Day width - the fundamental unit */
+            --day-width: 8px;
+            --lane-label-width: 140px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            font-size: 17px;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 24px 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8em;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            opacity: 0.85;
+            font-size: 0.95em;
+        }
+
+        .today-marker {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 0.85em;
+            margin-top: 12px;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            padding: 16px 20px;
+            background: var(--card);
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .legend-diamond {
+            width: 12px;
+            height: 12px;
+            transform: rotate(45deg);
+            border-radius: 2px;
+        }
+
+        /* Scroll hint */
+        .scroll-hint {
+            text-align: center;
+            padding: 12px;
+            color: var(--muted);
+            font-size: 0.85em;
+            font-style: italic;
+            background: #fef3c7;
+        }
+
+        /* Main container */
+        .swimlane-container {
+            padding: 20px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .swimlane-wrapper {
+            display: inline-block;
+            min-width: 100%;
+        }
+
+        /* Timeline header - months */
+        .timeline-header {
+            display: flex;
+            margin-left: var(--lane-label-width);
+        }
+
+        .month-header {
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95em;
+            color: var(--primary);
+            padding: 12px 0;
+            border-left: 2px solid var(--primary);
+            background: rgba(26, 54, 93, 0.05);
+        }
+
+        .month-header:first-child {
+            border-left: none;
+        }
+
+        /* Day grid header (optional week markers) */
+        .day-grid-header {
+            display: flex;
+            margin-left: var(--lane-label-width);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .day-cell-header {
+            height: 4px;
+            background: #e2e8f0;
+            border-left: 1px solid #cbd5e1;
+        }
+
+        .day-cell-header.week-start {
+            background: #cbd5e1;
+        }
+
+        .day-cell-header.month-start {
+            border-left: 2px solid var(--primary);
+        }
+
+        /* Swimlane row */
+        .swimlane {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+            background: var(--card);
+        }
+
+        .swimlane:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .swimlane.has-two-rows {
+            /* Will be set dynamically */
+        }
+
+        .lane-label {
+            width: var(--lane-label-width);
+            min-width: var(--lane-label-width);
+            padding: 16px 12px;
+            font-weight: 600;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: inherit;
+            border-right: 4px solid;
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            cursor: help;
+        }
+
+        .lane-label .lane-icon {
+            font-size: 1.2em;
+        }
+
+        .lane-label.moodle { border-color: var(--lane-moodle); color: var(--lane-moodle); }
+        .lane-label.epad { border-color: var(--lane-epad); color: var(--lane-epad); }
+        .lane-label.turas { border-color: var(--lane-turas); color: var(--lane-turas); }
+        .lane-label.qmple { border-color: var(--lane-qmple); color: var(--lane-qmple); }
+        .lane-label.placement { border-color: var(--lane-placement); color: var(--lane-placement); }
+
+        /* Lane content - day grid */
+        .lane-content {
+            display: flex;
+            position: relative;
+            min-height: 90px;
+        }
+
+        .lane-content.two-rows {
+            min-height: 140px;
+        }
+
+        .day-cell {
+            flex-shrink: 0;
+            border-left: 1px solid #f1f5f9;
+            background: inherit;
+        }
+
+        .day-cell.week-start {
+            border-left: 1px solid #e2e8f0;
+        }
+
+        .day-cell.month-start {
+            border-left: 2px solid #cbd5e1;
+        }
+
+        .day-cell.today {
+            background: rgba(43, 108, 176, 0.08);
+        }
+
+        /* Today indicator line */
+        .today-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent);
+            z-index: 8;
+            pointer-events: none;
+        }
+
+        .today-line.with-label::before {
+            content: 'TODAY';
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.6em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        /* Events layer */
+        .events-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        /* Point events - diamond marker with label below */
+        .event-point {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 5;
+            transition: transform 0.15s;
+        }
+
+        .event-point.row-0 {
+            top: 12px;
+        }
+
+        .event-point.row-1 {
+            top: 72px;
+        }
+
+        .event-point:hover {
+            transform: scale(1.1);
+            z-index: 20;
+        }
+
+        .event-marker {
+            width: 14px;
+            height: 14px;
+            transform: rotate(45deg);
+            border-radius: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .event-point.moodle .event-marker { background: var(--lane-moodle); }
+        .event-point.epad .event-marker { background: var(--lane-epad); }
+        .event-point.turas .event-marker { background: var(--lane-turas); }
+        .event-point.qmple .event-marker { background: var(--lane-qmple); }
+        .event-point.placement .event-marker { background: var(--lane-placement); }
+
+        .event-label {
+            margin-top: 10px;
+            padding: 5px 8px;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.7em;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+            border-left: 3px solid;
+            text-align: center;
+        }
+
+        .event-point.moodle .event-label { border-color: var(--lane-moodle); color: var(--lane-moodle); }
+        .event-point.epad .event-label { border-color: var(--lane-epad); color: var(--lane-epad); }
+        .event-point.turas .event-label { border-color: var(--lane-turas); color: var(--lane-turas); }
+        .event-point.qmple .event-label { border-color: var(--lane-qmple); color: var(--lane-qmple); }
+        .event-point.placement .event-label { border-color: var(--lane-placement); color: var(--lane-placement); }
+
+        .event-label .event-date {
+            display: block;
+            font-size: 0.9em;
+            font-weight: 500;
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+
+        /* Span events - bars showing duration */
+        .event-span {
+            position: absolute;
+            height: 36px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 4;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 14px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .event-span.row-0 {
+            top: 27px;
+        }
+
+        .event-span.row-1 {
+            top: 85px;
+        }
+
+        .event-span:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            z-index: 20;
+        }
+
+        .event-span.moodle { background: linear-gradient(90deg, var(--lane-moodle), #6d28d9); }
+        .event-span.epad { background: linear-gradient(90deg, var(--lane-epad), #b91c1c); }
+        .event-span.turas { background: linear-gradient(90deg, var(--lane-turas), #0e7490); }
+        .event-span.qmple { background: linear-gradient(90deg, var(--lane-qmple), #c2410c); }
+        .event-span.placement { background: linear-gradient(90deg, var(--lane-placement), #15803d); }
+
+        /* Tooltip */
+        .tooltip {
+            display: none;
+            position: fixed;
+            background: var(--primary);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 0.95em;
+            max-width: 320px;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+
+        .tooltip.visible {
+            display: block;
+        }
+
+        .tooltip h4 {
+            font-size: 1.1em;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .tooltip .tooltip-date {
+            font-size: 0.9em;
+            opacity: 0.85;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .tooltip ul {
+            list-style: none;
+            font-size: 0.9em;
+        }
+
+        .tooltip li {
+            padding: 4px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+
+        .tooltip li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            opacity: 0.7;
+        }
+
+        .tooltip .critical {
+            background: rgba(220, 38, 38, 0.3);
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            font-size: 0.9em;
+        }
+
+        /* Lane tooltip */
+        .lane-tooltip {
+            display: none;
+            position: fixed;
+            background: #334155;
+            color: white;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            max-width: 300px;
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        .lane-tooltip.visible {
+            display: block;
+        }
+
+        .lane-tooltip .lane-tooltip-title {
+            font-weight: 700;
+            font-size: 1.05em;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lane-tooltip .lane-tooltip-owner {
+            font-size: 0.85em;
+            opacity: 0.75;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .lane-tooltip .lane-tooltip-desc {
+            font-size: 0.95em;
+        }
+
+        /* Instructions */
+        .instructions {
+            max-width: 800px;
+            margin: 24px auto;
+            padding: 0 20px;
+        }
+
+        .instructions-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .instructions-card h3 {
+            font-size: 1.15em;
+            color: var(--primary);
+            margin-bottom: 14px;
+        }
+
+        .instructions-card p {
+            font-size: 0.95em;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            :root {
+                --day-width: 6px;
+                --lane-label-width: 100px;
+            }
+
+            header h1 {
+                font-size: 1.4em;
+            }
+
+            .legend {
+                gap: 10px;
+                padding: 12px;
+            }
+
+            .legend-item {
+                font-size: 0.8em;
+            }
+
+            .lane-label {
+                padding: 12px 8px;
+                font-size: 0.85em;
+            }
+
+            .lane-label .lane-icon {
+                display: none;
+            }
+
+            .event-label {
+                font-size: 0.65em;
+                padding: 4px 6px;
+            }
+
+            .event-span {
+                font-size: 0.65em;
+                height: 30px;
+                padding: 0 10px;
+            }
+
+            .month-header {
+                font-size: 0.8em;
+                padding: 8px 0;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            :root {
+                --day-width: 10px;
+                --lane-label-width: 180px;
+            }
+
+            .lane-label {
+                font-size: 1em;
+            }
+
+            .event-label {
+                font-size: 0.75em;
+            }
+
+            .event-span {
+                font-size: 0.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Programme Swimlane Timeline</h1>
+        <p>When each system is active throughout your semester</p>
+        <div class="today-marker" id="today-display"></div>
+    </header>
+
+    <div class="legend">
+        <div class="legend-item"><span class="legend-diamond" style="background: var(--lane-moodle)"></span> Moodle</div>
+        <div class="legend-item"><span class="legend-diamond" style="background: var(--lane-epad)"></span> ePAD</div>
+        <div class="legend-item"><span class="legend-diamond" style="background: var(--lane-turas)"></span> Turas Learn</div>
+        <div class="legend-item"><span class="legend-diamond" style="background: var(--lane-qmple)"></span> QMPLE</div>
+        <div class="legend-item"><span class="legend-diamond" style="background: var(--lane-placement)"></span> Placements</div>
+    </div>
+
+    <p class="scroll-hint">← Scroll horizontally to see full timeline →</p>
+
+    <div class="swimlane-container">
+        <div class="swimlane-wrapper" id="swimlane-wrapper">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+
+    <div class="instructions">
+        <div class="instructions-card">
+            <h3>How to read this</h3>
+            <p>Each row represents a system. The timeline is divided into days — each column is one day, grouped by month.</p>
+            <p><strong>◆ Diamond markers</strong> = single-day deadlines. <strong>Bars</strong> = periods spanning multiple days (their width shows exact duration).</p>
+            <p><strong>Tap or hover</strong> on any event to see full details. Hover over system names on the left for descriptions.</p>
+        </div>
+        <div class="instructions-card" style="margin-top: 16px; background: #fefce8; border-left: 4px solid #ca8a04;">
+            <h3 style="color: #854d0e;">⚠️ Disclaimer</h3>
+            <p style="color: #713f12;">This timeline is an <strong>unofficial study aid</strong> compiled from course materials as of January 2026. Please verify all dates and requirements against Moodle and official communications. Accuracy is not guaranteed and this may not be updated. Use at your own discretion.</p>
+        </div>
+    </div>
+
+    <!-- Tooltips -->
+    <div class="tooltip" id="tooltip"></div>
+    <div class="lane-tooltip" id="lane-tooltip"></div>
+
+    <script>
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+    const timelineStart = new Date(2026, 1, 1);  // 1 Feb 2026
+    const timelineEnd = new Date(2026, 7, 0);    // 31 Jul 2026
+
+    const months = [
+        { name: 'February', year: 2026, month: 1 },
+        { name: 'March', year: 2026, month: 2 },
+        { name: 'April', year: 2026, month: 3 },
+        { name: 'May', year: 2026, month: 4 },
+        { name: 'June', year: 2026, month: 5 },
+        { name: 'July', year: 2026, month: 6 }
+    ];
+
+    const lanes = [
+        { 
+            id: 'moodle', 
+            name: 'Moodle', 
+            icon: '📚', 
+            class: 'moodle',
+            twoRows: true,
+            description: 'Edinburgh Napier University\'s Virtual Learning Environment. Used for accessing module content, submitting assignments, and taking digital exams (with LockDown Browser).',
+            owner: 'Edinburgh Napier University'
+        },
+        { 
+            id: 'epad', 
+            name: 'ePAD', 
+            icon: '📋', 
+            class: 'epad',
+            twoRows: true,
+            description: 'Electronic Practice Assessment Document. Records placement hours, proficiencies, supervisor feedback, and reflections. Upload Turas and SafeMedicate certificates here before placement.',
+            owner: 'NHS Education Scotland (NES)'
+        },
+        { 
+            id: 'turas', 
+            name: 'Turas Learn', 
+            icon: '🎓', 
+            class: 'turas',
+            twoRows: false,
+            description: 'NHS Scotland\'s learning platform. Complete mandatory training modules here including SIPCEP (infection prevention), Moving & Handling, BLS, Fire Safety, and Safeguarding.',
+            owner: 'NHS Education Scotland (NES)'
+        },
+        { 
+            id: 'qmple', 
+            name: 'QMPLE', 
+            icon: '📊', 
+            class: 'qmple',
+            twoRows: true,  // Has overlapping events
+            description: 'Quality Management of Practice Learning Environment. View your placement allocations, download induction packs, and submit SPLEF feedback after each placement.',
+            owner: 'NHS Education Scotland (NES)'
+        },
+        { 
+            id: 'placement', 
+            name: 'Placements', 
+            icon: '🏥', 
+            class: 'placement',
+            twoRows: false,
+            description: 'Practice Learning Experiences (PLEs) in NHS settings. You\'ll work alongside registered nurses and other healthcare professionals to develop clinical skills.',
+            owner: 'NHS Scotland (various Health Boards)'
+        }
+    ];
+
+    // ============================================================
+    // EVENT DATA
+    // row: 0 = top row, 1 = bottom row (for lanes with twoRows: true)
+    // ============================================================
+    const events = [
+        // Moodle
+        {
+            lane: 'moodle',
+            start: new Date(2026, 1, 1),
+            end: new Date(2026, 2, 22),
+            row: 1,
+            title: 'SafeMedicate Essential Skills',
+            subtitle: 'Complete before placement',
+            details: [
+                '6 chapters: SI units, Tablets & capsules, Liquid medicines, Injections, IV infusions',
+                '3 assessments required (80% pass mark)',
+                'Authentic diagnostic + authentic + numeracy assessments',
+                'Upload certificates to ePAD when complete'
+            ],
+            critical: 'Must read all theory before assessments - tracked by staff'
+        },
+        {
+            lane: 'moodle',
+            start: new Date(2026, 1, 11),
+            end: null,
+            row: 0,
+            title: 'Formative Presentation',
+            subtitle: 'NUR07111',
+            details: ['Narrated PowerPoint (2 slides)', '~1.5 minutes', 'Not graded - feedback only'],
+            critical: null
+        },
+        {
+            lane: 'moodle',
+            start: new Date(2026, 3, 15),
+            end: null,
+            row: 0,
+            title: 'Community Profile',
+            subtitle: 'NUR07111 · 100%',
+            details: ['5-min narrated PowerPoint (8 slides)', 'Use Community Profiling Template', 'Deadline: 12 Noon'],
+            critical: 'Audio MUST be attached or you cannot pass'
+        },
+        {
+            lane: 'moodle',
+            start: new Date(2026, 6, 1),
+            end: new Date(2026, 6, 14),
+            row: 0,
+            title: 'Body Systems Exam',
+            subtitle: 'NUR07116 · 100%',
+            details: ['Digital exam - 60 MCQs', '2 hours duration', 'Pass mark: 40%', 'Take any time in this 2-week window'],
+            critical: null
+        },
+
+        // ePAD
+        {
+            lane: 'epad',
+            start: new Date(2026, 2, 23),
+            end: null,
+            row: 0,
+            title: 'Certificates Upload',
+            subtitle: 'Deadline',
+            details: ['Upload all Turas certificates', 'Upload SafeMedicate skills record & assessment record', 'Must complete before placement'],
+            critical: null
+        },
+        {
+            lane: 'epad',
+            start: new Date(2026, 3, 20),
+            end: null,
+            row: 0,
+            title: 'PLE1 Reflection',
+            subtitle: 'Due',
+            details: ['Submit via ePAD', 'Reflect on placement learning'],
+            critical: null
+        },
+        {
+            lane: 'epad',
+            start: new Date(2026, 5, 26),
+            end: null,
+            row: 1,
+            title: 'Service User Feedback',
+            subtitle: 'NES Requirement',
+            details: ['Patient or carer feedback form', 'Can be done in PLE1 or PLE2', 'Recommended to do in both placements'],
+            critical: 'Cannot progress to Year 2 without this completed'
+        },
+        {
+            lane: 'epad',
+            start: new Date(2026, 6, 13),
+            end: null,
+            row: 0,
+            title: 'PLE2 Reflection',
+            subtitle: 'Due',
+            details: ['Submit via ePAD', 'Reflect on placement learning'],
+            critical: null
+        },
+
+        // Turas Learn
+        {
+            lane: 'turas',
+            start: new Date(2026, 1, 1),
+            end: new Date(2026, 2, 22),
+            row: 0,
+            title: 'SIPCEP & Mandatory Training',
+            subtitle: 'Complete before placement',
+            details: [
+                'SIPCEP infection prevention (14 modules)',
+                'Adult & Child Basic Life Support',
+                'Moving and Handling',
+                'Fire Safety',
+                'Adult/Child Support & Protection',
+                'Safe Information Handling'
+            ],
+            critical: 'Must be completed before placement starts'
+        },
+
+        // QMPLE - staggered to avoid overlap
+        {
+            lane: 'qmple',
+            start: new Date(2026, 3, 6),
+            end: null,
+            row: 0,
+            title: 'View PLE1 Allocation',
+            subtitle: 'Check details',
+            details: ['Access placement information', 'Download induction pack'],
+            critical: null
+        },
+        {
+            lane: 'qmple',
+            start: new Date(2026, 4, 20),
+            end: null,
+            row: 0,
+            title: 'SPLEF Feedback',
+            subtitle: 'PLE1',
+            details: ['Complete Student Practice Learning Environment Feedback', 'Provide feedback on your placement'],
+            critical: null
+        },
+        {
+            lane: 'qmple',
+            start: new Date(2026, 4, 25),
+            end: null,
+            row: 1,  // Bottom row to avoid overlap with SPLEF
+            title: 'View PLE2 Allocation',
+            subtitle: 'Check details',
+            details: ['Access placement information', 'Download induction pack'],
+            critical: null
+        },
+
+        // Placements
+        {
+            lane: 'placement',
+            start: new Date(2026, 3, 13),
+            end: new Date(2026, 4, 25),
+            row: 0,
+            title: 'PLE1 Placement',
+            subtitle: '13 Apr - 25 May',
+            details: ['Practice Learning Experience 1', 'Assessment week: 25 May - 1 Jun'],
+            critical: null
+        },
+        {
+            lane: 'placement',
+            start: new Date(2026, 5, 1),
+            end: new Date(2026, 5, 26),
+            row: 0,
+            title: 'PLE2 Placement',
+            subtitle: '1 Jun - 26 Jun',
+            details: ['Practice Learning Experience 2', 'IPL: ~29 June'],
+            critical: null
+        }
+    ];
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+    function getDaysInMonth(year, month) {
+        return new Date(year, month + 1, 0).getDate();
+    }
+
+    function daysBetween(date1, date2) {
+        return Math.ceil((date2 - date1) / (1000 * 60 * 60 * 24));
+    }
+
+    function getDayIndex(date) {
+        return daysBetween(timelineStart, date);
+    }
+
+    function formatDate(date) {
+        return date.toLocaleDateString('en-GB', { 
+            weekday: 'short', 
+            day: 'numeric', 
+            month: 'short'
+        });
+    }
+
+    function formatDateRange(start, end) {
+        if (!end) return formatDate(start);
+        return `${formatDate(start)} - ${formatDate(end)}`;
+    }
+
+    function isToday(date) {
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+               date.getMonth() === today.getMonth() &&
+               date.getFullYear() === today.getFullYear();
+    }
+
+    // ============================================================
+    // RENDER
+    // ============================================================
+    function init() {
+        updateTodayDisplay();
+        render();
+        setupTooltips();
+    }
+
+    function updateTodayDisplay() {
+        const today = new Date();
+        const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        document.getElementById('today-display').textContent = today.toLocaleDateString('en-GB', options);
+    }
+
+    function render() {
+        const wrapper = document.getElementById('swimlane-wrapper');
+        const dayWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--day-width'));
+        
+        let html = '';
+
+        // Calculate total days and build day array
+        const days = [];
+        let currentDate = new Date(timelineStart);
+        while (currentDate <= timelineEnd) {
+            days.push(new Date(currentDate));
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Month headers
+        html += '<div class="timeline-header">';
+        months.forEach(m => {
+            const daysInMonth = getDaysInMonth(m.year, m.month);
+            const width = daysInMonth * dayWidth;
+            html += `<div class="month-header" style="width: ${width}px">${m.name}</div>`;
+        });
+        html += '</div>';
+
+        // Day grid header (subtle markers)
+        html += '<div class="day-grid-header">';
+        days.forEach((day, idx) => {
+            const isWeekStart = day.getDay() === 1; // Monday
+            const isMonthStart = day.getDate() === 1;
+            let classes = 'day-cell-header';
+            if (isWeekStart) classes += ' week-start';
+            if (isMonthStart) classes += ' month-start';
+            html += `<div class="${classes}" style="width: ${dayWidth}px"></div>`;
+        });
+        html += '</div>';
+
+        // Swimlanes
+        lanes.forEach((lane, laneIdx) => {
+            const laneData = encodeURIComponent(JSON.stringify({
+                name: lane.name,
+                icon: lane.icon,
+                description: lane.description,
+                owner: lane.owner
+            }));
+            
+            const twoRowsClass = lane.twoRows ? 'two-rows' : '';
+            
+            html += `<div class="swimlane">`;
+            html += `<div class="lane-label ${lane.class}" data-lane="${laneData}">
+                        <span class="lane-icon">${lane.icon}</span>
+                        ${lane.name}
+                     </div>`;
+            html += `<div class="lane-content ${twoRowsClass}">`;
+            
+            // Day cells (background grid)
+            days.forEach((day, idx) => {
+                const isWeekStart = day.getDay() === 1;
+                const isMonthStart = day.getDate() === 1;
+                const isTodayCell = isToday(day);
+                let classes = 'day-cell';
+                if (isWeekStart) classes += ' week-start';
+                if (isMonthStart) classes += ' month-start';
+                if (isTodayCell) classes += ' today';
+                html += `<div class="${classes}" style="width: ${dayWidth}px"></div>`;
+            });
+
+            // Events layer
+            html += '<div class="events-layer">';
+
+            // Today line (only show label on first lane)
+            const today = new Date();
+            if (today >= timelineStart && today <= timelineEnd) {
+                const todayIdx = getDayIndex(today);
+                const labelClass = laneIdx === 0 ? 'with-label' : '';
+                html += `<div class="today-line ${labelClass}" style="left: ${todayIdx * dayWidth}px"></div>`;
+            }
+
+            // Render events for this lane
+            const laneEvents = events.filter(e => e.lane === lane.id);
+            laneEvents.forEach(event => {
+                const startIdx = getDayIndex(event.start);
+                const leftPx = startIdx * dayWidth;
+                const rowClass = `row-${event.row || 0}`;
+                
+                const eventData = encodeURIComponent(JSON.stringify({
+                    ...event,
+                    start: event.start.toISOString(),
+                    end: event.end ? event.end.toISOString() : null
+                }));
+
+                if (event.end) {
+                    // Span event
+                    const endIdx = getDayIndex(event.end);
+                    const widthPx = (endIdx - startIdx + 1) * dayWidth;
+                    html += `<div class="event-span ${lane.class} ${rowClass}" 
+                                style="left: ${leftPx}px; width: ${widthPx}px;"
+                                data-event="${eventData}">
+                                ${event.title}
+                            </div>`;
+                } else {
+                    // Point event - diamond marker
+                    html += `<div class="event-point ${lane.class} ${rowClass}" 
+                                style="left: ${leftPx}px;"
+                                data-event="${eventData}">
+                                <div class="event-marker"></div>
+                                <div class="event-label">
+                                    ${event.title}
+                                    <span class="event-date">${event.start.getDate()}/${event.start.getMonth() + 1}</span>
+                                </div>
+                            </div>`;
+                }
+            });
+
+            html += '</div>'; // events-layer
+            html += '</div>'; // lane-content
+            html += '</div>'; // swimlane
+        });
+
+        wrapper.innerHTML = html;
+    }
+
+    function setupTooltips() {
+        // Event tooltips
+        document.querySelectorAll('[data-event]').forEach(el => {
+            el.addEventListener('mouseenter', (e) => showTooltip(e, el));
+            el.addEventListener('mouseleave', hideTooltip);
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                showTooltip(e, el);
+            });
+        });
+
+        // Lane label tooltips
+        document.querySelectorAll('[data-lane]').forEach(el => {
+            el.addEventListener('mouseenter', (e) => showLaneTooltip(e, el));
+            el.addEventListener('mouseleave', hideLaneTooltip);
+            el.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                showLaneTooltip(e, el);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-event]') && !e.target.closest('.tooltip')) {
+                hideTooltip();
+            }
+            if (!e.target.closest('[data-lane]') && !e.target.closest('.lane-tooltip')) {
+                hideLaneTooltip();
+            }
+        });
+
+        document.addEventListener('scroll', () => {
+            hideTooltip();
+            hideLaneTooltip();
+        }, true);
+    }
+
+    function showTooltip(e, el) {
+        const tooltip = document.getElementById('tooltip');
+        const event = JSON.parse(decodeURIComponent(el.dataset.event));
+        
+        const startDate = new Date(event.start);
+        const endDate = event.end ? new Date(event.end) : null;
+        
+        let html = `<h4>${event.title}</h4>`;
+        html += `<div class="tooltip-date">${formatDateRange(startDate, endDate)}${event.subtitle ? '<br>' + event.subtitle : ''}</div>`;
+        
+        if (event.details && event.details.length > 0) {
+            html += '<ul>';
+            event.details.forEach(d => {
+                html += `<li>${d}</li>`;
+            });
+            html += '</ul>';
+        }
+        
+        if (event.critical) {
+            html += `<div class="critical">⚠️ ${event.critical}</div>`;
+        }
+        
+        tooltip.innerHTML = html;
+        tooltip.classList.add('visible');
+        
+        positionTooltip(tooltip, el);
+    }
+
+    function hideTooltip() {
+        document.getElementById('tooltip').classList.remove('visible');
+    }
+
+    function showLaneTooltip(e, el) {
+        const laneTooltip = document.getElementById('lane-tooltip');
+        const lane = JSON.parse(decodeURIComponent(el.dataset.lane));
+        
+        let html = `<div class="lane-tooltip-title">${lane.icon} ${lane.name}</div>`;
+        html += `<div class="lane-tooltip-owner">${lane.owner}</div>`;
+        html += `<div class="lane-tooltip-desc">${lane.description}</div>`;
+        
+        laneTooltip.innerHTML = html;
+        laneTooltip.classList.add('visible');
+        
+        // Position to the right of the label
+        const rect = el.getBoundingClientRect();
+        const tooltipRect = laneTooltip.getBoundingClientRect();
+        
+        let left = rect.right + 12;
+        let top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+        
+        // If it would go off the right edge, position below instead
+        if (left + tooltipRect.width > window.innerWidth - 15) {
+            left = rect.left;
+            top = rect.bottom + 10;
+        }
+        
+        // Keep on screen
+        if (top + tooltipRect.height > window.innerHeight - 15) {
+            top = window.innerHeight - tooltipRect.height - 15;
+        }
+        if (top < 15) top = 15;
+        
+        laneTooltip.style.left = left + 'px';
+        laneTooltip.style.top = top + 'px';
+    }
+
+    function hideLaneTooltip() {
+        document.getElementById('lane-tooltip').classList.remove('visible');
+    }
+
+    function positionTooltip(tooltip, el) {
+        const rect = el.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top;
+        
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        
+        if (spaceBelow >= tooltipRect.height + 15) {
+            top = rect.bottom + 10;
+        } else if (spaceAbove >= tooltipRect.height + 15) {
+            top = rect.top - tooltipRect.height - 10;
+        } else {
+            top = spaceBelow > spaceAbove ? rect.bottom + 10 : Math.max(10, rect.top - tooltipRect.height - 10);
+        }
+        
+        if (left + tooltipRect.width > window.innerWidth - 15) {
+            left = window.innerWidth - tooltipRect.width - 15;
+        }
+        if (left < 15) left = 15;
+        if (top + tooltipRect.height > window.innerHeight - 15) {
+            top = window.innerHeight - tooltipRect.height - 15;
+        }
+        if (top < 15) top = 15;
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
